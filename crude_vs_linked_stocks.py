@@ -43,7 +43,8 @@ def plot_crude(norm):
 
 def get_crude_insights(data):
 
-    last_3y = data.last("3Y")
+    data.index = pd.to_datetime(data.index)
+    last_3y = data[data.index >= data.index.max() - pd.DateOffset(years=3)]
     returns = (last_3y.iloc[-1] / last_3y.iloc[0] - 1) * 100
 
     best = returns.idxmax()
