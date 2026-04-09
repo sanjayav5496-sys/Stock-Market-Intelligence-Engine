@@ -2,10 +2,16 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from nifty_vs_gold_ratio import get_nifty_gold_data, get_decision
 
+# ✅ CACHE FIX (CRITICAL)
+@st.cache_data
+def load_data():
+    return get_nifty_gold_data()
+
+
 def show_nifty_gold():
     st.title("⚖ Nifty vs Gold Analysis")
 
-    df, df_norm = get_nifty_gold_data()
+    df, df_norm = load_data()
 
     # -----------------------------
     # Charts
@@ -22,13 +28,20 @@ def show_nifty_gold():
     # Bottom chart
     ax2.plot(df.index, df["Ratio"], color="gray", alpha=0.3, label="Raw")
     ax2.plot(df.index, df["Ratio_Smooth"], color="blue", label="200 DMA")
-    ax2.axhline(df["Ratio"].mean(), linestyle="--", color="black", label="Average")
+    ax2.axhline(df["Ratio"].median(), linestyle="--", color="black", label="Median")
 
     ax2.set_title("Nifty / Gold Ratio")
     ax2.legend()
     ax2.grid()
 
     st.pyplot(fig)
+
+    # -----------------------------
+    # RESET BUTTON (IMPORTANT)
+    # -----------------------------
+    if st.button("🔄 Reset Data"):
+        st.cache_data.clear()
+        st.rerun()
 
     # -----------------------------
     # User Input
@@ -39,35 +52,32 @@ def show_nifty_gold():
     col1, col2 = st.columns(2)
 
     with col1:
-        nifty_input = st.number_input("Nifty Value", value=20000.0)
+        nifty_input = st.number_input("Nifty Value", value=23000.0)
 
     with col2:
-        gold_input = st.number_input("Gold (₹/gram)", value=6000.0)
+        gold_input = st.number_input("Gold (₹/gram)", value=7000.0)
 
     # -----------------------------
     # Decision
     # -----------------------------
     if st.button("Analyze Market"):
 
-        if gold_input == 0:
-            st.error("Gold price cannot be zero")
+        current_ratio, historical_avg, decision = get_decision(
+            nifty_input, gold_input, df
+        )
+
+        st.markdown("---")
+        st.subheader("📊 Result")
+
+        st.metric("Current Ratio", f"{current_ratio:.2f}")
+        st.metric("Historical Avg", f"{historical_avg:.2f}")
+
+        if "EXPENSIVE" in decision:
+            st.error(decision)
+        elif "CHEAP" in decision:
+            st.success(decision)
         else:
-            current_ratio, historical_avg, decision = get_decision(
-                nifty_input, gold_input, df
-            )
-
-            st.markdown("---")
-            st.subheader("📊 Result")
-
-            st.metric("Current Ratio", f"{current_ratio:.2f}")
-            st.metric("Historical Avg", f"{historical_avg:.2f}")
-
-            if "EXPENSIVE" in decision:
-                st.error(decision)
-            elif "CHEAP" in decision:
-                st.success(decision)
-            else:
-                st.info(decision)
+            st.info(decision)
 
 
 show_nifty_gold()

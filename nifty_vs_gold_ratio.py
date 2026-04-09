@@ -11,62 +11,65 @@ def get_nifty_gold_data():
     usd_inr = yf.download("USDINR=X", period="max", progress=False)
 
     # -----------------------------
-    # 2. Extract Close Prices
+    # 2. Extract Close Prices (FIXED)
     # -----------------------------
-    nifty_close = nifty["Close"].squeeze()
-    gold_usd_close = gold_usd["Close"].squeeze()
-    usd_inr_close = usd_inr["Close"].squeeze()
+    def get_close(df, name):
+        series = df["Close"]
+        if isinstance(series, pd.DataFrame):
+            series = series.iloc[:, 0]
+        return series.rename(name)
+
+    nifty_close = get_close(nifty, "Nifty")
+    gold_usd_close = get_close(gold_usd, "Gold_USD")
+    usd_inr_close = get_close(usd_inr, "USDINR")
 
     # -----------------------------
-    # 3. Convert Gold → INR/gram
+    # 3. Combine FIRST (important)
     # -----------------------------
-    gold_inr = (gold_usd_close * usd_inr_close) / 31.1035
+    df = pd.concat([nifty_close, gold_usd_close, usd_inr_close], axis=1).dropna()
 
     # -----------------------------
-    # 4. Combine + Align Data
+    # 4. Convert Gold → INR/gram
     # -----------------------------
-    df = pd.concat(
-        [
-            nifty_close.rename("Nifty"),
-            gold_inr.rename("Gold")
-        ],
-        axis=1
-    ).dropna()
+    df["Gold"] = (df["Gold_USD"] * df["USDINR"]) / 31.1035
 
     # -----------------------------
     # 5. Ratio Calculation
     # -----------------------------
     df["Ratio"] = df["Nifty"] / df["Gold"]
-    df["Ratio_Smooth"] = df["Ratio"].rolling(200).mean()
+
+    # 🚨 Sanity filter (VERY IMPORTANT)
+    df = df[(df["Ratio"] > 0.5) & (df["Ratio"] < 10)]
 
     # -----------------------------
-    # 6. Proper Normalization (FIXED)
+    # 6. Smooth Ratio
     # -----------------------------
-    df_norm = (1 + df[["Nifty", "Gold"]].pct_change()).cumprod() * 100
+    df["Ratio_Smooth"] = df["Ratio"].rolling(200, min_periods=50).mean()
+
+    # -----------------------------
+    # 7. Normalization (SAFE)
+    # -----------------------------
+    df_norm = df[["Nifty", "Gold"]].pct_change().add(1).cumprod() * 100
 
     return df, df_norm
 
 
 def get_decision(nifty_input, gold_input, df):
-    # -----------------------------
-    # Safety Check
-    # -----------------------------
     if gold_input == 0:
         return None, None, "❌ Gold price cannot be zero"
 
-    # -----------------------------
-    # Ratio Logic
-    # -----------------------------
     current_ratio = nifty_input / gold_input
-    historical_avg = df["Ratio"].mean()
+
+    # Use median instead of mean (more stable)
+    historical_avg = df["Ratio"].median()
 
     # -----------------------------
-    # Decision
+    # Decision Logic
     # -----------------------------
-    if current_ratio > historical_avg:
-        decision = "📉 Nifty is EXPENSIVE vs Gold → Prefer GOLD"
-    elif current_ratio < historical_avg:
-        decision = "📈 Nifty is CHEAP vs Gold → Prefer EQUITY"
+    if current_ratio > historical_avg * 1.1:
+        decision = "📉 Nifty is EXPENSIVE than Gold → Prefer GOLD"
+    elif current_ratio < historical_avg * 0.9:
+        decision = "📈 Nifty is CHEAPER than Gold → Prefer EQUITY"
     else:
         decision = "⚖️ Neutral Zone"
 
