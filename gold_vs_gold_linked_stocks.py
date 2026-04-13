@@ -2,6 +2,10 @@ import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 
+
+# -------------------------------
+# 📊 FETCH DATA
+# -------------------------------
 def get_gold_data():
 
     tickers = {
@@ -28,6 +32,9 @@ def get_gold_data():
     return data, norm
 
 
+# -------------------------------
+# 📈 LINE CHARTS
+# -------------------------------
 def plot_gold(norm):
 
     fig, axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
@@ -54,13 +61,55 @@ def plot_gold(norm):
     return fig
 
 
+# -------------------------------
+# 📊 RETURNS CALCULATION
+# -------------------------------
 def get_gold_insights(data):
 
-    data.index = pd.to_datetime(data.index)  
+    data.index = pd.to_datetime(data.index)
+
     last_3y = data[data.index >= data.index.max() - pd.DateOffset(years=3)]
+
     returns = (last_3y.iloc[-1] / last_3y.iloc[0] - 1) * 100
 
     best = returns.idxmax()
     worst = returns.idxmin()
 
     return returns, best, worst
+
+
+def plot_returns_bar(returns):
+
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(6, 3))
+
+    names = returns.index
+    values = returns.values
+
+    # 🔵 Blue bars
+    bars = ax.bar(names, values, color="#2E86C1", width=0.6)
+
+    # ✅ Remove grid (MAIN FIX)
+    ax.grid(False)
+
+    # ✅ Remove top/right borders (clean look)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    # Optional: soften left/bottom
+    ax.spines['left'].set_alpha(0.3)
+    ax.spines['bottom'].set_alpha(0.3)
+
+    # Value labels
+    for i, v in enumerate(values):
+        ax.text(i, v + (2 if v > 0 else -5), f"{v:.1f}%", 
+                ha='center', fontsize=9)
+
+    ax.set_title("3-Year Returns Comparison", fontsize=11)
+    ax.set_ylabel("Returns (%)")
+
+    ax.tick_params(axis='x', rotation=25)
+
+    plt.tight_layout()
+    return fig

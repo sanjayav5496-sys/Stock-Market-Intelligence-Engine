@@ -1,10 +1,11 @@
 import streamlit as st
 
-# GOLD IMPORTS (your existing file)
+# GOLD IMPORTS (also contains plot_returns_bar)
 from gold_vs_gold_linked_stocks import (
     get_gold_data,
     plot_gold,
-    get_gold_insights
+    get_gold_insights,
+    plot_returns_bar   # ✅ use this for both
 )
 
 # CRUDE IMPORTS
@@ -37,14 +38,22 @@ def show_commodity():
 
         col1, col2 = st.columns([2, 1])
 
+        # LEFT → CHARTS
         with col1:
             fig = plot_gold(norm)
             st.pyplot(fig)
 
+            returns, best, worst = get_gold_insights(data)
+
+            st.subheader("📊 3-Year Returns (Comparison)")
+            fig2 = plot_returns_bar(returns)   # ✅ BLUE BAR
+            st.pyplot(fig2)
+
+        # RIGHT → INSIGHTS
         with col2:
             returns, best, worst = get_gold_insights(data)
 
-            st.subheader("📊 3-Year Returns")
+            st.subheader("📊 Returns Summary")
             for col in returns.index:
                 st.write(f"{col}: {returns[col]:.2f}%")
 
@@ -63,15 +72,22 @@ def show_commodity():
 
         col1, col2 = st.columns([2, 1])
 
+        # LEFT → CHARTS
         with col1:
             fig = plot_crude(norm)
             st.pyplot(fig)
 
-        with col2:
-            # ✅ FIXED LINE (no more error)
             returns, best, worst, logic = get_crude_insights(data)
 
-            st.subheader("📊 3-Year Returns")
+            st.subheader("📊 3-Year Returns (Comparison)")
+            fig2 = plot_returns_bar(returns)   # ✅ SAME FUNCTION
+            st.pyplot(fig2)
+
+        # RIGHT → INSIGHTS
+        with col2:
+            returns, best, worst, logic = get_crude_insights(data)
+
+            st.subheader("📊 Returns Summary")
             for col in returns.index:
                 st.write(f"{col}: {returns[col]:.2f}%")
 
@@ -85,5 +101,5 @@ def show_commodity():
             st.write(logic)
 
 
-
+# RUN APP
 show_commodity()
